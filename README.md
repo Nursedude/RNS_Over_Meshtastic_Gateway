@@ -11,10 +11,6 @@ Interface for RNS using Meshtastic as the underlying networking layer to utilize
 Use the interactive installer for easy setup:
 
 ```bash
-# Clone or download this repository
-git clone https://github.com/landandair/RNS_Over_Meshtastic.git
-cd RNS_Over_Meshtastic
-
 # Run the installer
 python3 install.py
 ```
