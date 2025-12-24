@@ -1,0 +1,13 @@
+# RNS_Over_Meshtastic Dependencies
+
+# Reticulum Network Stack - Core networking framework
+rns>=0.7.0
+
+# Meshtastic Python Library - Interface with Meshtastic devices
+meshtastic>=2.0.0
+
+# PySerial - Serial port communication
+pyserial>=3.5
+
+# PubSub - Required by Meshtastic for event handling
+pypubsub>=4.0.3
