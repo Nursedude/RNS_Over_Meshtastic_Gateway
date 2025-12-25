@@ -17,6 +17,8 @@ import struct
 import threading
 import time
 import re
+import RNS
+from RNS.Interfaces import Interface
 
 
 # Let's define our custom interface class. It must
@@ -160,6 +162,7 @@ class MeshtasticInterface(Interface):
             port = DEFAULT_TCP_PORT
             if ":" in self.tcp_port:
                 host, port = self.tcp_port.split(":", maxsplit=1)
+                port = int(port)
 
             self.interface = TCPInterface(hostname=host, portNumber=port)
         else:
