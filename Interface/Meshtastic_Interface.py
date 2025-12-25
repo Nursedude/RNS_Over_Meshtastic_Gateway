@@ -286,7 +286,7 @@ class MeshtasticInterface(Interface):
                 index, position = self.packet_i_queue.pop(0)
                 if index in self.outgoing_packet_storage:
                     data = self.outgoing_packet_storage[index][position]  # Get data from position
-                    if self.outgoing_packet_storage[index] is PacketHandler:
+                    if isinstance(self.outgoing_packet_storage[index], PacketHandler):
                         dest = self.outgoing_packet_storage[index].destination_id
             if data:
                 # Update the transmitted bytes counter
