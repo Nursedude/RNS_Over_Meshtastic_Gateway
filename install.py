@@ -231,56 +231,99 @@ def configure_linux_permissions():
         print_warning("You need to log out and log back in for permission changes to take effect")
     return success
 
-def main():
-    """Main installer function"""
-    print_header("RNS Over Meshtastic Installer")
-
-    print(f"{Colors.BOLD}This installer will help you set up:{Colors.END}")
-    print("  • Reticulum Network Stack (RNS)")
-    print("  • Meshtastic Python library")
-    print("  • RNS Meshtastic interface")
-    print("  • Optional: RNS applications (NomadNet, Meshchat)\n")
-
-    if not prompt_yes_no("Continue with installation?", True):
-        print_info("Installation cancelled")
-        return
-
-    # Check Python version
+def check_prerequisites():
+    """Check and validate system prerequisites"""
     print_header("Step 1: Checking Prerequisites")
+
     if not check_python_version():
         sys.exit(1)
 
-    # Check pip
     if not check_command_exists("pip") and not check_command_exists("pip3"):
         print_error("pip is not installed. Please install pip first.")
         sys.exit(1)
     print_success("pip is installed")
 
-    # Install core packages
+
+def install_core_packages():
+    """Install required Python packages"""
     print_header("Step 2: Installing Core Packages")
 
-    if prompt_yes_no("Install required Python packages?", True):
-        packages = [
-            ("rns", "Reticulum Network Stack"),
-            ("meshtastic", "Meshtastic Python library"),
-            ("pyserial", "Serial port library"),
-            ("pypubsub", "Publish-subscribe library")
-        ]
+    if not prompt_yes_no("Install required Python packages?", True):
+        return
 
-        for package, description in packages:
-            success, _ = install_pip_package(package, f"Installing {description}")
-            if not success:
-                print_error(f"Failed to install {package}")
-                if not prompt_yes_no("Continue anyway?", False):
-                    sys.exit(1)
+    packages = [
+        ("rns", "Reticulum Network Stack"),
+        ("meshtastic", "Meshtastic Python library"),
+        ("pyserial", "Serial port library"),
+        ("pypubsub", "Publish-subscribe library")
+    ]
 
-    # Copy interface file
+    for package, description in packages:
+        success, _ = install_pip_package(package, f"Installing {description}")
+        if not success:
+            print_error(f"Failed to install {package}")
+            if not prompt_yes_no("Continue anyway?", False):
+                sys.exit(1)
+
+
+def install_interface():
+    """Install Meshtastic interface file"""
     print_header("Step 3: Installing Meshtastic Interface")
+
     if not copy_interface_file():
         print_error("Failed to install interface file")
         sys.exit(1)
 
-    # Configure Meshtastic connection
+
+def configure_serial_connection():
+    """Configure serial (USB) connection"""
+    ports = detect_serial_ports()
+    port = None
+
+    if ports:
+        print_success(f"Found {len(ports)} serial device(s)")
+        port_choice = prompt_choice("Select serial port:", ports + ["Enter manually"], 0)
+        if port_choice < len(ports):
+            port = ports[port_choice]
+        else:
+            port = input(f"{Colors.CYAN}Enter serial port path: {Colors.END}").strip()
+    else:
+        print_warning("No serial devices detected")
+        port = input(f"{Colors.CYAN}Enter serial port path (e.g., /dev/ttyUSB0): {Colors.END}").strip()
+
+    if platform.system() == "Linux":
+        configure_linux_permissions()
+
+    return port
+
+
+def configure_ble_connection():
+    """Configure Bluetooth LE connection"""
+    ble_port = input(f"{Colors.CYAN}Enter Meshtastic BLE device ID (e.g., short_1234): {Colors.END}").strip()
+    return ble_port
+
+
+def configure_tcp_connection():
+    """Configure TCP/IP connection"""
+    tcp_port = input(f"{Colors.CYAN}Enter TCP address:port (e.g., 127.0.0.1:4403): {Colors.END}").strip()
+    return tcp_port
+
+
+def prompt_lora_speed():
+    """Prompt user for LoRa speed setting"""
+    print(f"\n{Colors.BOLD}LoRa Speed Settings:{Colors.END}")
+    print("  8 - SHORT_TURBO (0.4s) - Recommended for RNS")
+    print("  6 - SHORT_FAST (1s)")
+    print("  5 - SHORT_SLOW (3s)")
+    print("  4 - MEDIUM_FAST (4s)")
+    print("  0 - LONG_FAST (8s) - Default")
+
+    speed_input = input(f"{Colors.CYAN}Enter speed setting [0-8] (default: 8): {Colors.END}").strip()
+    return int(speed_input) if speed_input.isdigit() else 8
+
+
+def configure_connection():
+    """Configure Meshtastic device connection"""
     print_header("Step 4: Configuring Meshtastic Connection")
 
     connection_types = ["Serial (USB)", "Bluetooth LE", "TCP/IP", "Skip configuration"]
@@ -291,45 +334,22 @@ def main():
     tcp_port = None
 
     if connection_choice == 0:  # Serial
-        ports = detect_serial_ports()
-        if ports:
-            print_success(f"Found {len(ports)} serial device(s)")
-            port_choice = prompt_choice("Select serial port:", ports + ["Enter manually"], 0)
-            if port_choice < len(ports):
-                port = ports[port_choice]
-            else:
-                port = input(f"{Colors.CYAN}Enter serial port path: {Colors.END}").strip()
-        else:
-            print_warning("No serial devices detected")
-            port = input(f"{Colors.CYAN}Enter serial port path (e.g., /dev/ttyUSB0): {Colors.END}").strip()
-
-        # Configure Linux permissions if needed
-        if platform.system() == "Linux":
-            configure_linux_permissions()
-
+        port = configure_serial_connection()
     elif connection_choice == 1:  # BLE
-        ble_port = input(f"{Colors.CYAN}Enter Meshtastic BLE device ID (e.g., short_1234): {Colors.END}").strip()
-
+        ble_port = configure_ble_connection()
     elif connection_choice == 2:  # TCP
-        tcp_port = input(f"{Colors.CYAN}Enter TCP address:port (e.g., 127.0.0.1:4403): {Colors.END}").strip()
+        tcp_port = configure_tcp_connection()
 
-    # Configure LoRa speed
     if connection_choice != 3:
-        print(f"\n{Colors.BOLD}LoRa Speed Settings:{Colors.END}")
-        print("  8 - SHORT_TURBO (0.4s) - Recommended for RNS")
-        print("  6 - SHORT_FAST (1s)")
-        print("  5 - SHORT_SLOW (3s)")
-        print("  4 - MEDIUM_FAST (4s)")
-        print("  0 - LONG_FAST (8s) - Default")
-
-        speed_input = input(f"{Colors.CYAN}Enter speed setting [0-8] (default: 8): {Colors.END}").strip()
-        data_speed = int(speed_input) if speed_input.isdigit() else 8
-
-        # Create RNS configuration
+        data_speed = prompt_lora_speed()
         interface_type = ["serial", "ble", "tcp"][connection_choice]
         create_rns_config(interface_type, port, ble_port, tcp_port, data_speed)
 
-    # Install optional applications
+    return connection_choice, port
+
+
+def install_optional_applications():
+    """Install optional RNS applications"""
     print_header("Step 5: Optional Applications")
 
     if prompt_yes_no("Install NomadNet (Terminal-based mesh communication)?", False):
@@ -341,7 +361,9 @@ def main():
     if prompt_yes_no("Install Sideband (for Linux)?", False):
         install_pip_package("sbapp", "Installing Sideband")
 
-    # Installation complete
+
+def print_completion_message(connection_choice, port):
+    """Print installation completion message and next steps"""
     print_header("Installation Complete!")
 
     print(f"\n{Colors.BOLD}{Colors.GREEN}Next Steps:{Colors.END}")
@@ -368,6 +390,28 @@ def main():
         print(f"\n{Colors.YELLOW}⚠ Remember to log out and log back in for serial port permissions!{Colors.END}")
 
     print(f"\n{Colors.GREEN}Happy meshing!{Colors.END}\n")
+
+
+def main():
+    """Main installer orchestrator"""
+    print_header("RNS Over Meshtastic Installer")
+
+    print(f"{Colors.BOLD}This installer will help you set up:{Colors.END}")
+    print("  • Reticulum Network Stack (RNS)")
+    print("  • Meshtastic Python library")
+    print("  • RNS Meshtastic interface")
+    print("  • Optional: RNS applications (NomadNet, Meshchat)\n")
+
+    if not prompt_yes_no("Continue with installation?", True):
+        print_info("Installation cancelled")
+        return
+
+    check_prerequisites()
+    install_core_packages()
+    install_interface()
+    connection_choice, port = configure_connection()
+    install_optional_applications()
+    print_completion_message(connection_choice, port)
 
 if __name__ == "__main__":
     try:
